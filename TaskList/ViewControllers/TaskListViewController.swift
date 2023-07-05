@@ -6,15 +6,10 @@
 //
 
 import UIKit
-import CoreData
-
-protocol TaskViewControllerDelegate: AnyObject {
-    func reloadData()
-}
 
 class TaskListViewController: UITableViewController {
     
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private let viewContext = StorageManager.shared.persistentContainer.viewContext
     
     private let cellID = "task"
     private var taskList: [Task] = []
@@ -23,7 +18,7 @@ class TaskListViewController: UITableViewController {
         super.viewDidLoad()
         setupNavigationBar()
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
-        fetchData()
+        taskList = StorageManager.shared.fetchTasks()
     }
 
     private func setupNavigationBar() {
@@ -49,18 +44,30 @@ class TaskListViewController: UITableViewController {
     
     @objc
     private func addNewTask() {
-        let taskVC = TaskViewController()
-        taskVC.delegate = self
-        present(taskVC, animated: true)
+        showAlert(withTitle: "New Task", andMessage: "What do you want to do?")
     }
     
-    private func fetchData() {
-        let fetchRequest = Task.fetchRequest()
+    private func showAlert(withTitle title: String, andMessage message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        let saveAction = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
+            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+            save(task)
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
+        alert.addAction(saveAction)
+        alert.addAction(cancelAction)
+        alert.addTextField { textField in
+            textField.placeholder = "New task"
+        }
         
-        do {
-            taskList = try viewContext.fetch(fetchRequest)
-        } catch(let error) {
-            print(error.localizedDescription)
+        present(alert, animated: true)
+    }
+    
+    private func save(_ taskName: String) {
+        StorageManager.shared.createTask(taskName) { [weak self] newTask in
+            self?.taskList.append(newTask)
+            let cellIndex = IndexPath(row: (self?.taskList.count ?? 1) - 1, section: 0)
+            self?.tableView.insertRows(at: [cellIndex], with: .automatic)
         }
     }
 }
@@ -81,11 +88,4 @@ extension TaskListViewController {
     }
 }
 
-//MARK: - TaskViewControllerDelegate
-extension TaskListViewController: TaskViewControllerDelegate {
-    func reloadData() {
-        fetchData()
-        tableView.reloadData()
-    }
-}
 
