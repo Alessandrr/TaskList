@@ -40,6 +40,18 @@ class StorageManager {
         completion?(task)
     }
     
+    func updateTask(_ task: Task, withNewName name: String) {
+        task.title = name
+        
+        if persistentContainer.viewContext.hasChanges {
+            do {
+                try persistentContainer.viewContext.save()
+            } catch(let error) {
+                print(error.localizedDescription)
+            }
+        }
+    }
+    
     // MARK: - Core Data stack
     var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "TaskList")

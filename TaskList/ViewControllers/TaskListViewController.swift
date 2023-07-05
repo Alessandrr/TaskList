@@ -7,6 +7,11 @@
 
 import UIKit
 
+enum AlertStyle {
+    case create
+    case update(task: Task)
+}
+
 class TaskListViewController: UITableViewController {
     
     private let viewContext = StorageManager.shared.persistentContainer.viewContext
@@ -44,21 +49,41 @@ class TaskListViewController: UITableViewController {
     
     @objc
     private func addNewTask() {
-        showAlert(withTitle: "New Task", andMessage: "What do you want to do?")
+        showAlert(
+            withTitle: "New Task",
+            andMessage: "What do you want to do?",
+            style: .create
+        )
     }
     
-    private func showAlert(withTitle title: String, andMessage message: String) {
+    private func showAlert(withTitle title: String, andMessage message: String, style: AlertStyle) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        let saveAction = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
-            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
-            save(task)
+        let proceedAction: UIAlertAction
+        
+        switch style {
+        case .create:
+            proceedAction = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
+                guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+                save(task)
+            }
+            
+            alert.addTextField { textField in
+                textField.placeholder = "New task"
+            }
+        case let .update (task):
+            proceedAction = UIAlertAction(title: "Update", style: .default) { [unowned self] _ in
+                guard let newTaskName = alert.textFields?.first?.text, !newTaskName.isEmpty else { return }
+                update(task, newName: newTaskName)
+            }
+            
+            alert.addTextField() { textField in
+                textField.text = task.title
+            }
         }
+        
         let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        alert.addAction(saveAction)
+        alert.addAction(proceedAction)
         alert.addAction(cancelAction)
-        alert.addTextField { textField in
-            textField.placeholder = "New task"
-        }
         
         present(alert, animated: true)
     }
@@ -69,6 +94,12 @@ class TaskListViewController: UITableViewController {
             let cellIndex = IndexPath(row: (self?.taskList.count ?? 1) - 1, section: 0)
             self?.tableView.insertRows(at: [cellIndex], with: .automatic)
         }
+    }
+    
+    private func update(_ task: Task, newName: String) {
+        StorageManager.shared.updateTask(task, withNewName: newName)
+        taskList = StorageManager.shared.fetchTasks()
+        tableView.reloadData()
     }
 }
 
@@ -85,6 +116,17 @@ extension TaskListViewController {
         content.text = task.title
         cell.contentConfiguration = content
         return cell
+    }
+}
+
+//MARK: - UITableViewDelegate
+extension TaskListViewController {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        showAlert(
+            withTitle: "Update task",
+            andMessage: "Enter a new name for the task:",
+            style: .update(task: taskList[indexPath.row])
+        )
     }
 }
 
