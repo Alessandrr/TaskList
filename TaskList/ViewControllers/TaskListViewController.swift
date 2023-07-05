@@ -127,6 +127,15 @@ extension TaskListViewController {
             andMessage: "Enter a new name for the task:",
             style: .update(task: taskList[indexPath.row])
         )
+        tableView.deselectRow(at: indexPath, animated: true)
+    }
+    
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            let taskToDelete = taskList.remove(at: indexPath.row)
+            StorageManager.shared.deleteTask(taskToDelete)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
     }
 }
 

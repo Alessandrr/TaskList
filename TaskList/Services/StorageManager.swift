@@ -52,6 +52,18 @@ class StorageManager {
         }
     }
     
+    func deleteTask(_ task: Task) {
+        persistentContainer.viewContext.delete(task)
+        
+        if persistentContainer.viewContext.hasChanges {
+            do {
+                try persistentContainer.viewContext.save()
+            } catch(let error) {
+                print(error.localizedDescription)
+            }
+        }
+    }
+    
     // MARK: - Core Data stack
     var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "TaskList")
