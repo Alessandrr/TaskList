@@ -99,7 +99,8 @@ class TaskListViewController: UITableViewController {
     private func update(_ task: Task, newName: String) {
         StorageManager.shared.updateTask(task, withNewName: newName)
         taskList = StorageManager.shared.fetchTasks()
-        tableView.reloadData()
+        let taskIndex = taskList.firstIndex(of: task) ?? 0
+        tableView.reloadRows(at: [IndexPath(row: taskIndex, section: 0)], with: .automatic)
     }
 }
 
