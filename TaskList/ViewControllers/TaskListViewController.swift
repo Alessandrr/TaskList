@@ -14,8 +14,6 @@ enum AlertStyle {
 
 class TaskListViewController: UITableViewController {
     
-    private let viewContext = StorageManager.shared.persistentContainer.viewContext
-    
     private let cellID = "task"
     private var taskList: [Task] = []
 
