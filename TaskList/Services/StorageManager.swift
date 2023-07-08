@@ -22,26 +22,28 @@ class StorageManager {
         return container
     }()
     
-    private init() {}
+    private let viewContext: NSManagedObjectContext
     
-    func fetchTasks() -> [Task] {
+    private init() {
+        viewContext = persistentContainer.viewContext
+    }
+    
+    func fetchTasks(completion: (Result<[Task], Error>) -> Void) {
         let fetchRequest = Task.fetchRequest()
         
         do {
-            let taskList = try persistentContainer.viewContext.fetch(fetchRequest)
-            return taskList
-        } catch(let error) {
-            print(error.localizedDescription)
-            return []
+            let taskList = try viewContext.fetch(fetchRequest)
+            completion(.success(taskList))
+        } catch let error {
+            completion(.failure(error))
         }
     }
     
     func createTask(_ taskName: String, completion: ((Task) -> Void)? = nil) {
-        let task = Task(context: persistentContainer.viewContext)
+        let task = Task(context: viewContext)
         task.title = taskName
-        saveContext()
-        
         completion?(task)
+        saveContext()
     }
     
     func updateTask(_ task: Task, withNewName name: String) {
@@ -50,16 +52,15 @@ class StorageManager {
     }
     
     func deleteTask(_ task: Task) {
-        persistentContainer.viewContext.delete(task)
+        viewContext.delete(task)
         saveContext()
     }
     
     // MARK: - Core Data Saving support
     func saveContext() {
-        let context = persistentContainer.viewContext
-        if context.hasChanges {
+        if viewContext.hasChanges {
             do {
-                try context.save()
+                try viewContext.save()
             } catch {
                 let nserror = error as NSError
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")

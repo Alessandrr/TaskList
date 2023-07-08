@@ -7,11 +7,6 @@
 
 import UIKit
 
-enum AlertStyle {
-    case create
-    case update(task: Task)
-}
-
 class TaskListViewController: UITableViewController {
     
     private let cellID = "task"
@@ -21,7 +16,7 @@ class TaskListViewController: UITableViewController {
         super.viewDidLoad()
         setupNavigationBar()
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
-        taskList = StorageManager.shared.fetchTasks()
+        fetchData()
     }
 
     private func setupNavigationBar() {
@@ -45,45 +40,8 @@ class TaskListViewController: UITableViewController {
         navigationController?.navigationBar.tintColor = .white
     }
     
-    @objc
-    private func addNewTask() {
-        showAlert(
-            withTitle: "New Task",
-            andMessage: "What do you want to do?",
-            style: .create
-        )
-    }
-    
-    private func showAlert(withTitle title: String, andMessage message: String, style: AlertStyle) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        let proceedAction: UIAlertAction
-        
-        switch style {
-        case .create:
-            proceedAction = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
-                guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
-                save(task)
-            }
-            
-            alert.addTextField { textField in
-                textField.placeholder = "New task"
-            }
-        case let .update (task):
-            proceedAction = UIAlertAction(title: "Update", style: .default) { [unowned self] _ in
-                guard let newTaskName = alert.textFields?.first?.text, !newTaskName.isEmpty else { return }
-                update(task, newName: newTaskName)
-            }
-            
-            alert.addTextField() { textField in
-                textField.text = task.title
-            }
-        }
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        alert.addAction(proceedAction)
-        alert.addAction(cancelAction)
-        
-        present(alert, animated: true)
+    @objc private func addNewTask() {
+        showAlert()
     }
     
     private func save(_ taskName: String) {
@@ -94,11 +52,15 @@ class TaskListViewController: UITableViewController {
         }
     }
     
-    private func update(_ task: Task, newName: String) {
-        StorageManager.shared.updateTask(task, withNewName: newName)
-        taskList = StorageManager.shared.fetchTasks()
-        let taskIndex = taskList.firstIndex(of: task) ?? 0
-        tableView.reloadRows(at: [IndexPath(row: taskIndex, section: 0)], with: .automatic)
+    private func fetchData() {
+        StorageManager.shared.fetchTasks { result in
+            switch result {
+            case .success(let tasks):
+                taskList = tasks
+            case .failure(let error):
+                print(error.localizedDescription)
+            }
+        }
     }
 }
 
@@ -121,11 +83,10 @@ extension TaskListViewController {
 //MARK: - UITableViewDelegate
 extension TaskListViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        showAlert(
-            withTitle: "Update task",
-            andMessage: "Enter a new name for the task:",
-            style: .update(task: taskList[indexPath.row])
-        )
+        let selectedTask = taskList[indexPath.row]
+        showAlert(task: selectedTask) {
+            tableView.reloadRows(at: [indexPath], with: .automatic)
+        }
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
@@ -135,6 +96,25 @@ extension TaskListViewController {
             StorageManager.shared.deleteTask(taskToDelete)
             tableView.deleteRows(at: [indexPath], with: .automatic)
         }
+    }
+}
+
+//MARK: - Alert View Controller
+extension TaskListViewController {
+    private func showAlert(task: Task? = nil, completion: (() -> Void)? = nil) {
+        let title = task != nil ? "Update task" : "New task"
+        let alert = UIAlertController.createAlertController(withTitle: title)
+        
+        alert.action(task: task) { [weak self] taskName in
+            if let task = task, let completion = completion {
+                StorageManager.shared.updateTask(task, withNewName: taskName)
+                completion()
+            } else {
+                self?.save(taskName)
+            }
+        }
+        
+        present(alert, animated: true)
     }
 }
 
